@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import argparse, os, glob
 import numpy as np
-import funcs as ff
+import shared.funcs as sf
 
 #--- retrieve args
 parser = argparse.ArgumentParser(
@@ -79,7 +79,7 @@ help='dots per inch for savefig()',
 # import custom methods for specific dataset
 # NOTE: the names of the variables/observables depend on this 
 # specific dataset && on the 'custom_data.py' script.
-import custom_data
+from shared import custom_data
 data_methods = [nm for nm in dir(custom_data) if nm.startswith('process_')]
 nmethods     = len(data_methods)
 var_names    = [ dm.split('process_')[1] for dm in data_methods]
@@ -99,7 +99,7 @@ assert pa.vname in var_names,\
 if not pa.verbose in ('debug', 'info'):
     raise SystemExit(' [-] Invalid argument: %s\n'%pa.verbose)
 
-ff.make_3dplot(pa.fname_inp, pa.fname_fig, pa.clim,
+sf.make_3dplot(pa.fname_inp, pa.fname_fig, pa.clim,
     vnames=custom_data.vnames, 
     data_processor=getattr(custom_data, 'process_'+pa.vname),
     verbose=pa.verbose, 
@@ -112,7 +112,7 @@ ff.make_3dplot(pa.fname_inp, pa.fname_fig, pa.clim,
 )
 """
 #--- w hdf5 input
-ff.make_3dplot_hdf5(pa.fname_inp, pa.fname_fig, pa.clim,
+sf.make_3dplot_hdf5(pa.fname_inp, pa.fname_fig, pa.clim,
     vname = pa.vname,
     verbose=pa.verbose, 
     ro=pa.ro,

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import argparse, os, glob
 import numpy as np
-import funcs as ff
+import shared.funcs as sf
 
 #--- retrieve args
 parser = argparse.ArgumentParser(
@@ -103,7 +103,7 @@ assert ok_single or ok_massive, \
 
 if pa.fname_inp is not None:
     # plot ONE snapshot
-    o = ff.plot_sphere_cuts(pa.fname_inp, pa.fname_fig, ro=pa.ro, 
+    o = sf.plot_sphere_cuts(pa.fname_inp, pa.fname_fig, ro=pa.ro, 
         pazim=pa.pazim, clim=pa.clim, checks=pa.checks, complete=True,
         verbose=pa.verbose, vnames=custom_data.vnames, 
         data_processor=getattr(custom_data, 'process_'+pa.vname),
@@ -113,7 +113,7 @@ elif pa.dir_src is not None:
     # plot SEVERAL snapshots
     assert os.path.isdir(pa.dir_src), \
         '[-] the directory \'%s\' does not exist!\n' % pa.dir_src
-    ff.make_sphere_shells(pa.dir_src, pa.dir_fig, prefix_fig=pa.fname_fig, 
+    sf.make_sphere_shells(pa.dir_src, pa.dir_fig, prefix_fig=pa.fname_fig, 
         ro=pa.ro, pazim=pa.pazim, clim=pa.clim, verbose=pa.verbose, 
         vnames=custom_data.vnames,
         data_processor=getattr(custom_data, 'process_'+pa.vname),
