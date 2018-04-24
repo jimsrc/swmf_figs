@@ -331,7 +331,7 @@ def get_array_Bmod(fname_inp, nc=[6,4,4], nRoot=[8,8,4], nLevel=1):
 
 def get_index_r(r, ro):
     """
-    NOTE: we assume 'r' is a monotically assending variable.
+    NOTE: we assume 'r' is a monotonically ascending variable.
     """
     dr_max  = (r[1:] - r[:-1]).max() # coarser resolution in r
 
@@ -754,18 +754,22 @@ def lon_cut(fname_inp, fname_fig, lon=0.0, dlon=0.0, r_range=[1.,24.], clim=[Non
     #--- slice an specific longitude = `lon`
     #i_ph  = get_index_r(ph*r2d, lon)
     #print ' > We\'ll plot i_ph: ', i_ph
+    # set the plot range in 'r'
+    i_r_min = get_index_r(r, r_range[0])
+    i_r_max = get_index_r(r, r_range[1])
     # make selection in a given width in longitude (centered in
     # the `lon` value)
     cc_ph = (ph*r2d>=(lon-.5*dlon)) & (ph*r2d<=(lon+.5*dlon))
-    if cc_ph.nonzero()[0].size > 0:
-        print('[+] phi plot limits: (%g, %g)\n' % (ph[cc_ph][0]*r2d,ph[cc_ph][-1]*r2d))
+    if (cc_ph.nonzero()[0].size > 0) and (i_r_max - i_r_min + 1 > 0):
+        print(' [+] phi plot limits: (%g, %g)' % (ph[cc_ph][0]*r2d,ph[cc_ph][-1]*r2d))
+        print(' [+] r plot limits: (%g, %g)\n' % (r[i_r_min], r[i_r_max]))
     else:
-        print('\n [-] the selection in longitude is NULL!\n')
+        raise SystemExit('\n [-] the selection in longitude and radii is NULL!\n')
     
     logger.debug(' [+] averaging %d slices of phi ...'%len(cc_ph.nonzero()[0]))
-    var_bare = np.nanmean(Bmod.transpose((1,0,2))[cc_ph,:,:], axis=0)
+    var_bare = np.nanmean(Bmod.transpose((1,0,2))[cc_ph,i_r_min:i_r_max+1,:], axis=0)
     # same w/o NaNs columns/rows
-    var, r_clean, th_clean = clean_sparse_array(var_bare, r, th)
+    var, r_clean, th_clean = clean_sparse_array(var_bare, r[i_r_min:i_r_max+1], th)
     #var_m = np.ma.masked_where(np.isnan(var),var)
     #var_m = np.ma.array(var, mask=np.isnan(var))
     var_m = np.ma.masked_where(np.isnan(var), var)
@@ -842,8 +846,8 @@ def lon_cut(fname_inp, fname_fig, lon=0.0, dlon=0.0, r_range=[1.,24.], clim=[Non
     sm.set_clim(vmin=cbmin, vmax=cbmax)
 
     # save figure
-    show()
-    #fig.savefig(fname_fig, dpi=135, bbox_inches='tight')
+    #show()
+    fig.savefig(fname_fig, dpi=135, bbox_inches='tight')
     close(fig)
 
     return d

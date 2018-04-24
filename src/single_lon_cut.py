@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import argparse, os, glob
 import numpy as np
-import funcs as ff
+import shared.funcs as sf
 
 #--- retrieve args
 parser = argparse.ArgumentParser(
@@ -55,7 +55,7 @@ help='verbosity level (debug=minimal, info=extended)',
 # import custom methods for specific dataset
 # NOTE: the names of the variables/observables depend on this 
 # specific dataset && on the 'custom_data.py' script.
-import custom_data
+from shared import custom_data
 data_methods = [nm for nm in dir(custom_data) if nm.startswith('process_')]
 nmethods     = len(data_methods)
 var_names    = [ dm.split('process_')[1] for dm in data_methods]
@@ -75,7 +75,7 @@ assert pa.vname in var_names,\
 if not pa.verbose in ('debug', 'info'):
     raise SystemExit(' [-] Invalid argument: %s\n'%pa.verbose)
 
-o = ff.lon_cut(pa.fname_inp, pa.fname_fig, lon=pa.lon, dlon=pa.dlon,
+o = sf.lon_cut(pa.fname_inp, pa.fname_fig, lon=pa.lon, dlon=pa.dlon,
     r_range=pa.r_range, 
     clim=pa.clim,
     verbose=pa.verbose, 
