@@ -23,6 +23,12 @@ type=str,
 default=None,
 help='output hdf5 file'
 )
+parser.add_argument(
+'-resume', '--resume',
+action='store_true',
+default=False,
+help='Use it if you don\'t want to override the .h5 files in destination dir.',
+)
 # import custom methods for specific dataset
 # NOTE: the names of the variables/observables depend on this 
 # specific dataset && on the 'custom_data.py' script.
@@ -61,6 +67,11 @@ fnm_list_proc = fnm_list[nf_prev:nf_prev+nf_proc[rank]]
 
 print "**************** STARTTTT *************"
 for fname_inp in fnm_list_proc:
+    # check is output already exists
+    fname_out = pa.dir_dst +'/'+ fname_inp.split('/')[-1].replace('.out','.h5')
+    if pa.resume and os.path.isfile(fname_out):
+        continue # dont't override .h5 file
+
     _data  = sf.read_data(fname_inp, vnames)
 
     vdict = {}
@@ -79,7 +90,7 @@ for fname_inp in fnm_list_proc:
             data_processor=getattr(custom_data, 'process_'+rvname),
             vectorial=False if rvname not in ('B',) else True,
             )
-    import pdb; pdb.set_trace()
+    #import pdb; pdb.set_trace()
     print "**************** LINEHERE *************"
 
     # NOTE: d['data'] is processed sutff built from the original (from
@@ -89,7 +100,6 @@ for fname_inp in fnm_list_proc:
     r, ph, th   = vdict[rvname]['coords']
     #data        = d['data']; 
 
-    fname_out = pa.dir_dst +'/'+ fname_inp.split('/')[-1].replace('.out','.h5')
     fo = h5py.File(fname_out, 'w')
     for rvname in retrieve_vnames:
         fo.create_dataset('data/'+rvname, dtype='f', 
