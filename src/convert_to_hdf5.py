@@ -4,19 +4,21 @@ import os, argparse
 import h5py
 import shared.funcs as sf
 import numpy as np
+from mpi4py import MPI
+from glob import glob
 
 #--- retrieve args
 parser = argparse.ArgumentParser(
 formatter_class=argparse.ArgumentDefaultsHelpFormatter
 )
 parser.add_argument(
-'-fi', '--fname_inp',
+'-ds', '--dir_src',
 type=str,
 default=None,
 help='input ASCII file',
 )
 parser.add_argument(
-'-fo', '--fname_out',
+'-dd', '--dir_dst',
 type=str,
 default=None,
 help='output hdf5 file'
@@ -40,48 +42,71 @@ pa = parser.parse_args()
 
 # _data is of shape (4,:) where ':' is the size of rows in the ASCII file
 vnames = custom_data.vnames # primitive columns in ASCII file
-_data  = sf.read_data(pa.fname_inp, vnames)
-
-vdict = {}
-
-# list of variable names (associated to some of the process_..() functions
-# in the custom_data.py file) that will be saved into the HDF5 output file.
-retrieve_vnames = custom_data.ovnames
-for rvname in retrieve_vnames:
-    # we'll obtain:
-    # - same data but in structured way; friendly for plot_surface().
-    # - fill 'vdict' with original ASCII data
-    vdict[rvname] = sf.get_array_vars(data=_data, checks=False, 
-        complete_domain_walk=True, 
-        vnames=custom_data.vnames, 
-        data_processor=getattr(custom_data, 'process_'+rvname),
-        vectorial=False if rvname not in ('B',) else True,
-        )
-
-# NOTE: d['data'] is processed sutff built from the original (from
-# the ASCII file) simulation data. Such processing was made
-# by 'data_processor()'.
-# NOTE: a this point, 'vdict' has the original data from the ASCII file.
-r, ph, th   = vdict[rvname]['coords']
-#data        = d['data']; 
 
 
-fo = h5py.File(pa.fname_out, 'w')
-for rvname in retrieve_vnames:
-    fo.create_dataset('data/'+rvname, dtype='f', 
-        shape=vdict[rvname]['data'].shape, 
-        fillvalue=np.nan, 
-        compression='gzip', 
-        compression_opts=9
-        )
-    fo['data/'+rvname][...] = vdict[rvname]['data']
-    # NOTE: the shape of 'vdict[rvname]['data']' should be
-    # either (r.size,ph.size,th.size) if scalar or
-    # (r.size,ph.size,th.size,3) if vectorial variable.
-        
-fo['coords/r']  = r
-fo['coords/ph'] = ph
-fo['coords/th'] = th
-fo.close()
+#---------------------------- MPI
+comm    = MPI.COMM_WORLD
+rank    = comm.Get_rank() # proc rank
+wsize   = comm.Get_size() # nmbr of procs
+
+#--- distribute the work
+# complete list of input files
+fnm_list      = glob(pa.dir_src+'/*.out')
+# list of number of files assigned to each proc
+nf_proc       = sf.equi_list(fnm_list, wsize)
+# nmbr of files assigned to all previous procs (i.e. those ranks < 'rank')
+nf_prev       = nf_proc[:rank].sum() 
+# list of files assigned to this proc
+fnm_list_proc = fnm_list[nf_prev:nf_prev+nf_proc[rank]]
+
+print "**************** STARTTTT *************"
+for fname_inp in fnm_list_proc:
+    _data  = sf.read_data(fname_inp, vnames)
+
+    vdict = {}
+
+    # list of variable names (associated to some of the process_..() functions
+    # in the custom_data.py file) that will be saved into the HDF5 output file.
+    retrieve_vnames = custom_data.ovnames
+    for rvname in retrieve_vnames:
+        print " [*] vname: " + rvname +'\n'
+        # we'll obtain:
+        # - same data but in structured way; friendly for plot_surface().
+        # - fill 'vdict' with original ASCII data
+        vdict[rvname] = sf.get_array_vars(data=_data, checks=False, 
+            complete_domain_walk=True, 
+            vnames=custom_data.vnames, 
+            data_processor=getattr(custom_data, 'process_'+rvname),
+            vectorial=False if rvname not in ('B',) else True,
+            )
+    import pdb; pdb.set_trace()
+    print "**************** LINEHERE *************"
+
+    # NOTE: d['data'] is processed sutff built from the original (from
+    # the ASCII file) simulation data. Such processing was made
+    # by 'data_processor()'.
+    # NOTE: a this point, 'vdict' has the original data from the ASCII file.
+    r, ph, th   = vdict[rvname]['coords']
+    #data        = d['data']; 
+
+    fname_out = pa.dir_dst +'/'+ fname_inp.split('/')[-1].replace('.out','.h5')
+    fo = h5py.File(fname_out, 'w')
+    for rvname in retrieve_vnames:
+        fo.create_dataset('data/'+rvname, dtype='f', 
+            shape=vdict[rvname]['data'].shape, 
+            fillvalue=np.nan, 
+            compression='gzip', 
+            compression_opts=9
+            )
+        fo['data/'+rvname][...] = vdict[rvname]['data']
+        # NOTE: the shape of 'vdict[rvname]['data']' should be
+        # either (r.size,ph.size,th.size) if scalar or
+        # (r.size,ph.size,th.size,3) if vectorial variable.
+            
+    fo['coords/r']  = r
+    fo['coords/ph'] = ph
+    fo['coords/th'] = th
+    print " [*] saving: " + fo.filename
+    fo.close()
 
 #EOF

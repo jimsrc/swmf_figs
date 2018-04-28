@@ -39,6 +39,46 @@ logger.addHandler(ch)
 
 
 
+def equi_list(flist, npart):
+    """
+    returns most equi-partitioned tuple of lists 
+    of days between date-objects 'dini' and 'dend'
+    """
+    nf      = len(flist)
+    nf_part = np.zeros(npart, dtype=np.int)
+    resid   = np.mod(nf, npart)
+    for i in range(npart-resid):
+        nf_part[i] = nf/npart
+    # last positions where I put residuals
+    last = np.arange(start=-1,stop=-resid-1,step=-1)
+    for i in last:
+        nf_part[i] = nf/npart + 1
+
+    assert np.sum(nf_part)==nf, \
+        " --> somethng went wrong!  :/ "
+
+    return nf_part
+
+def equi_days(dini, dend, n):
+    """
+    returns most equi-partitioned tuple of number 
+    of days between date-objects 'dini' and 'dend'
+    """
+    days = (dend - dini).days
+    days_part = np.zeros(n, dtype=np.int)
+    resid = np.mod(days, n)
+    for i in range(n-resid):
+        days_part[i] = days/n
+    # last positions where I put residuals
+    last = np.arange(start=-1,stop=-resid-1,step=-1)
+    for i in last:
+        days_part[i] = days/n+1
+
+    assert np.sum(days_part)==days, \
+        " --> somethng went wrong!  :/ "
+
+    return days_part
+
 #+++++++++++++++++++++++++++++++++++
 def calc_phi(_x, _y):
     assert (_x!=0) or (_y!=0.), "\n [-] singularity!\n"
@@ -731,7 +771,7 @@ def make_3dplot(fname_inp, fname_fig, clim=[None,None], vnames=[], data_processo
     return None
 
 
-def lon_cut(fname_inp, fname_fig, lon=0.0, dlon=0.0, r_range=[1.,24.], clim=[None,None], verbose='debug', vnames=[], data_processor=None, cscale='linear'):
+def lon_cut(fname_inp, fname_fig, lon=0.0, dlon=0.0, r_range=[1.,24.], clim=[None,None], verbose='debug', vnames=[], data_processor=None, cscale='linear', interactive=False):
     """
     make 2D plot with a longitudinal cuts
     """
@@ -787,7 +827,7 @@ def lon_cut(fname_inp, fname_fig, lon=0.0, dlon=0.0, r_range=[1.,24.], clim=[Non
     Z           = R * np.sin(TH)
 
     #--- figure
-    fig     = figure(1,)
+    fig     = figure(1, figsize=(6,5))
     ax      = fig.add_subplot(111, )
 
     #--- other options
@@ -833,7 +873,8 @@ def lon_cut(fname_inp, fname_fig, lon=0.0, dlon=0.0, r_range=[1.,24.], clim=[Non
     ax.set_xlabel('$\\rho$ [Ro]')
     ax.set_ylabel('$Z$ [Ro]')
     TITLE = ' global $\phi$ limits: (%g, %g) \n' % (ph[0]*r2d, ph[-1]*r2d) +\
-    '$\phi$ interval for plot: (%.2g, %.2g) [deg]' % (ph[cc_ph][0]*r2d, ph[cc_ph][-1]*r2d)
+    '$\phi$ interval for plot: (%.2g, %.2g) [deg]\n' % (ph[cc_ph][0]*r2d, ph[cc_ph][-1]*r2d) +\
+    '$r$ interval: (%.2g, %.2g) [Ro]' % (r[i_r_min], r[i_r_max])
     ax.set_title(TITLE)
     #ax.set_xlim(1.7, 1.9)
     #ax.set_ylim(-0.1, 0.1)
@@ -846,8 +887,10 @@ def lon_cut(fname_inp, fname_fig, lon=0.0, dlon=0.0, r_range=[1.,24.], clim=[Non
     sm.set_clim(vmin=cbmin, vmax=cbmax)
 
     # save figure
-    #show()
-    fig.savefig(fname_fig, dpi=135, bbox_inches='tight')
+    if interactive:
+        show()
+    else:
+        fig.savefig(fname_fig, dpi=135, bbox_inches='tight')
     close(fig)
 
     return d
