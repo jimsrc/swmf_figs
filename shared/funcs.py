@@ -570,10 +570,21 @@ def PlotCut_fixed_ph(fig_stuff, data, pho, r_range, pazim=-60., verbose='debug')
     i_r_min = get_index_r(r, r_range[0])
     i_r_max = get_index_r(r, r_range[1])
 
-    # we need the transpose in order to be consistent with 'plot_surface'
-    var_bare = Bmod.transpose((1,0,2))[i_ph,i_r_min:i_r_max+1,:]
+    # we'll search a interval in phi such that var_bare has some numeric values.
+    # NOTE: 10 iterations seems reasonable.
+    for i_dph in range(0,10):
+        # we need the transpose in order to be consistent with 'plot_surface'
+        var_bare = np.nanmean(
+            Bmod.transpose((1,0,2))[i_ph-i_dph:i_ph+i_dph+1,i_r_min:i_r_max+1,:],
+            axis = 0,
+            )
+        # if it has some numeric content, we have valid
+        # data in 'var_bare', so we are done.
+        if not np.isnan(np.nanmean(var_bare)): break
+
     # same w/o NaNs
     var, r_clean, th_clean = clean_sparse_array(var_bare,r[i_r_min:i_r_max+1],th)
+
     print '[+] plot extremes: ', np.nanmin(var), np.nanmax(var)
     # NOTE: 'plot_surface' can only plot variables with shape (n,m), so 
     # no 3D variables.
