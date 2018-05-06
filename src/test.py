@@ -109,6 +109,7 @@ sf.make_3dplot(pa.fname_inp, pa.fname_fig, pa.clim,
     pazim = pa.pazim,
     cscale=pa.cb_scale,         # colorbar scale
     dpi=pa.dpi,
+    wtimelabel=True,
 )
 """
 #--- w hdf5 input

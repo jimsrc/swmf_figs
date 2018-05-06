@@ -95,7 +95,7 @@ def calc_phi(_x, _y):
         return np.arctan(_y/_x)
 
 
-
+#@profile
 def read_data(fnm, vnames):
     """
     fnm     : input filename
@@ -170,6 +170,7 @@ def read_data(fnm, vnames):
         assert len(vdict.keys()) > 0,\
         ' [-] we did not grab any variable from:\n %r\n by using the parsed list:\n %r\n'% (fpb.keys(), vnames)
         # TODO: need to close 'fpb'?
+        del fpb
 
     else:
         raise SystemExit('\n [-] wrong file format: %r\n'%fformat)
@@ -228,7 +229,7 @@ def ib_to_ind(ic, ib, coords, nRoot, nc, nLevel):
 
     return ind, ind_r, ind_ph, ind_th
 
-
+#@profile
 def get_array_vars(fname_inp=None, data=None, checks=False, complete_domain_walk=False, vnames=[], data_processor=None, vdict=None, vectorial=False):
     """
     - read data from the ASCII file w/o assuming that it is consistent
@@ -312,7 +313,7 @@ def get_array_vars(fname_inp=None, data=None, checks=False, complete_domain_walk
     'data'      : data
     }
 
-
+#@profile
 def get_array_Bmod(fname_inp, nc=[6,4,4], nRoot=[8,8,4], nLevel=1):
     r, ph, th, Bmod         = read_data(fname_inp)
     ndata                   = r.size
@@ -368,7 +369,7 @@ def get_array_Bmod(fname_inp, nc=[6,4,4], nRoot=[8,8,4], nLevel=1):
     'Bmod'      : data,
     }
 
-
+#@profile
 def get_index_r(r, ro):
     """
     NOTE: we assume 'r' is a monotonically ascending variable.
@@ -553,6 +554,7 @@ def plot_sphere_cuts(fname_inp, fname_fig, ro, pazim=-60., clim=[None,None], che
 
     return d
 
+#@profile
 def PlotCut_fixed_ph(fig_stuff, data, pho, r_range, pazim=-60., verbose='debug'):
     """
     make 3D plot with a radial and longitudinal cuts
@@ -596,6 +598,7 @@ def PlotCut_fixed_ph(fig_stuff, data, pho, r_range, pazim=-60., verbose='debug')
     'surf'      : surf,
     }
 
+#@profile
 def PlotCut_fixed_r(fig_stuff, data, ro, pazim=-60., verbose='debug'):
     """
     make 3D plot with a radial and longitudinal cuts
@@ -682,7 +685,7 @@ def file_format(fname):
     else: 
         return None
 
-
+#@profile
 def make_3dplot(fname_inp, fname_fig, clim=[None,None], vnames=[], data_processor=None, verbose='debug', **kws):
     """
     make 3D plot with a radial and longitudinal cuts
@@ -755,6 +758,9 @@ def make_3dplot(fname_inp, fname_fig, clim=[None,None], vnames=[], data_processo
     ax.set_zlabel('Z [Ro]')
     TITLE = '$r_o$ = %.2g $R_o$' % r_plot +\
     '\n($\phi_o$,r1,r2) : ($%g^o,%g\,Ro,%g\,Ro$)' % (pho,r_range[0],r_range[1])
+    if kws.get('wtimelabel',False):
+        tlabel = fname_inp.split('/')[-1].split('.h5')[0].split('_')[-1].replace('n','')
+        TITLE += '\n step: '+tlabel
     ax.set_title(TITLE)
 
     #--- colorbar
@@ -768,6 +774,7 @@ def make_3dplot(fname_inp, fname_fig, clim=[None,None], vnames=[], data_processo
     #show()
     fig.savefig(fname_fig, dpi=kws.get('dpi',135), bbox_inches='tight')
     close(fig)
+    del fig
     return None
 
 
@@ -895,7 +902,7 @@ def lon_cut(fname_inp, fname_fig, lon=0.0, dlon=0.0, r_range=[1.,24.], clim=[Non
 
     return d
 
-
+#@profile
 def clean_sparse_array(m, x, y):
     """
     remove all rows and columns full of zeros
