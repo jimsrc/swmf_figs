@@ -3,6 +3,7 @@
 import argparse, os, glob
 import numpy as np
 import shared.funcs as sf
+from mpi4py import MPI
 
 #--- retrieve args
 parser = argparse.ArgumentParser(
@@ -105,34 +106,55 @@ pa = parser.parse_args()
 
 
 #--- consistency checks (either individual or massive)
-assert (pa.fname_inp is None) or (pa.dir_src is None), \
+assert not(pa.fname_inp and pa.dir_src), \
     '\n [*] specify either --fname_inp OR --dir_src. Not both.\n'
 
-assert (pa.fname_fig is None) and (pa.dir_dst is None), \
+assert not(pa.fname_fig and pa.dir_dst), \
     '\n [*] specify --fname_fig OR --dir_dst. Not both.'
 
 #--- check we have a valid variable name
 assert pa.vname in var_names,\
     ' [-] vname argument should be one of the these: ' + ', '.join(var_names)
-assert os.path.isfile(pa.fname_inp)
 
 #--- check verbose option
 if not pa.verbose in ('debug', 'info'):
     raise SystemExit(' [-] Invalid argument: %s\n'%pa.verbose)
 
+
 # build list of input files
-if pa.dir_src is not None:
+if pa.dir_src:
     assert os.path.isdir(pa.dir_src)
-    finp_list = glob(pa.dir_src+'/*.h5')
+    finp_list = glob.glob(pa.dir_src+'/*.h5')
     assert len(finp_list)>0
+    print " >>> creating "+pa.dir_dst
+    if pa.dir_dst: os.system('mkdir -p ' + pa.dir_dst)
 else:
     assert os.path.isfile(pa.fname_inp)
     finp_list = [pa.fname_inp,]
 
-# build figs
-for finp in finp_list:
-    fname_fig = finp.replace('.h5','__'+pa.vname+'.png') if not pa.fname_inp \
-        else pa.fname_fig
+
+#--- distribute the work
+comm          = MPI.COMM_WORLD
+rank          = comm.Get_rank() # proc rank
+wsize         = comm.Get_size() # nmbr of procs
+# list of number of files assigned to each proc
+nf_proc       = sf.equi_list(finp_list, wsize)
+# nmbr of files assigned to all previous procs (i.e. those ranks < 'rank')
+nf_prev       = nf_proc[:rank].sum() 
+# list of files assigned to this proc
+finp_list_proc = finp_list[nf_prev:nf_prev+nf_proc[rank]]
+
+
+#--- build figs
+for finp in finp_list_proc:
+    if not pa.fname_inp:    # massive mode
+        fname_fig = finp.replace('.h5','__'+pa.vname+'.png')
+        if pa.dir_dst:
+            # change the dir path
+            fname_fig = pa.dir_dst + '/' + fname_fig.split('/')[-1]
+    else:                   # individual mode
+        fname_fig = pa.fname_fig
+
     sf.make_3dplot(
         finp, 
         fname_fig, 
