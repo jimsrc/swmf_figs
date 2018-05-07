@@ -25,13 +25,25 @@ parser.add_argument(
 '-fi', '--fname_inp',
 type=str,
 default=None,
-help='input ASCII file',
+help='input ASCII file. If this option is used, don\'t use --dir_src.',
 )
 parser.add_argument(
 '-ff', '--fname_fig',
 type=str,
 default=None,
-help='output PNG file. If --dir_fig or -df is specified, this means the prefix of the output figures.',
+help='output PNG file. If --dir_dst is specified, this option must not be used.',
+)
+parser.add_argument(
+'-ds', '--dir_src',
+type=str,
+default=None,
+help='input directory. If this option is used, don\'t use --fname_inp.',
+)
+parser.add_argument(
+'-dd', '--dir_dst',
+type=str,
+default=None,
+help='input directory',
 )
 parser.add_argument(
 '-ro', '--ro',
@@ -91,26 +103,51 @@ default=var_names[0],
 )
 pa = parser.parse_args()
 
+
+#--- consistency checks (either individual or massive)
+assert (pa.fname_inp is None) or (pa.dir_src is None), \
+    '\n [*] specify either --fname_inp OR --dir_src. Not both.\n'
+
+assert (pa.fname_fig is None) and (pa.dir_dst is None), \
+    '\n [*] specify --fname_fig OR --dir_dst. Not both.'
+
 #--- check we have a valid variable name
 assert pa.vname in var_names,\
     ' [-] vname argument should be one of the these: ' + ', '.join(var_names)
+assert os.path.isfile(pa.fname_inp)
 
 #--- check verbose option
 if not pa.verbose in ('debug', 'info'):
     raise SystemExit(' [-] Invalid argument: %s\n'%pa.verbose)
 
-sf.make_3dplot(pa.fname_inp, pa.fname_fig, pa.clim,
-    vnames=custom_data.vnames, 
-    data_processor=getattr(custom_data, 'process_'+pa.vname),
-    verbose=pa.verbose, 
-    ro=pa.ro,
-    pho = pa.pho,
-    r_range=pa.r_range,
-    pazim = pa.pazim,
-    cscale=pa.cb_scale,         # colorbar scale
-    dpi=pa.dpi,
-    wtimelabel=True,
-)
+# build list of input files
+if pa.dir_src is not None:
+    assert os.path.isdir(pa.dir_src)
+    finp_list = glob(pa.dir_src+'/*.h5')
+    assert len(finp_list)>0
+else:
+    assert os.path.isfile(pa.fname_inp)
+    finp_list = [pa.fname_inp,]
+
+# build figs
+for finp in finp_list:
+    fname_fig = finp.replace('.h5','__'+pa.vname+'.png') if not pa.fname_inp \
+        else pa.fname_fig
+    sf.make_3dplot(
+        finp, 
+        fname_fig, 
+        pa.clim,
+        vnames = custom_data.vnames, 
+        data_processor = getattr(custom_data, 'process_'+pa.vname),
+        verbose = pa.verbose, 
+        ro = pa.ro,
+        pho = pa.pho,
+        r_range = pa.r_range,
+        pazim = pa.pazim,
+        cscale = pa.cb_scale,         # colorbar scale
+        dpi = pa.dpi,
+        wtimelabel = True,
+    )
 """
 #--- w hdf5 input
 sf.make_3dplot_hdf5(pa.fname_inp, pa.fname_fig, pa.clim,

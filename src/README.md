@@ -44,12 +44,14 @@ ASCII files are), and run:
 * cut in `ph`, in a given range of radii (`r1`:`r2`), determinated by the arguments `-pho` (longitude value, in degrees, at which we take a slice) and `-rr`.
 NOTE: the input file can be in ASCII or HDF5 format.
 
-    ./test.py -- \
-        -fi ../../run__FDIPS_iv/SC/IO2/3d__var_1_n00000005.out \
-        -ff ./figs/test_3.png \
-        -cs log -vname Bmod -ro 5.0 \
-        -pho 10.0 -rr 5.0 10.0 -clim 0.008 0.08
-    # NOTE: the colobar scale is determinated with the argument -cs
+```bash
+./test.py -- \
+    -fi ../../run__FDIPS_iv/SC/IO2/3d__var_1_n00000005.out \
+    -ff ./figs/test_3.png \
+    -cs log -vname Bmod -ro 5.0 \
+    -pho 10.0 -rr 5.0 10.0 -clim 0.008 0.08
+# NOTE: the colobar scale is determinated with the argument -cs
+```
 
 ---
 ### cut at a given longitude phi
@@ -61,6 +63,8 @@ NOTE: the input file can be in ASCII or HDF5 format.
         -lon 40. \
         -dlon 3. \
         -vname Bmod
+
+    ./single_lon_cut.py --pdb -- -v debug -rr 1.01 2.3 -fi ~/swmf.lfs__FDIPS_CR2106/run_test/SC/IO2/3d__var_1_n00000000.out -ff ./test.png -lon 40. -dlon 3. -vname Bmod -i
 
 
 ---
