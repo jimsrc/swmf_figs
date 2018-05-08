@@ -126,7 +126,6 @@ if pa.dir_src:
     assert os.path.isdir(pa.dir_src)
     finp_list = glob.glob(pa.dir_src+'/*.h5')
     assert len(finp_list)>0
-    print " >>> creating "+pa.dir_dst
     if pa.dir_dst: os.system('mkdir -p ' + pa.dir_dst)
 else:
     assert os.path.isfile(pa.fname_inp)
@@ -169,6 +168,7 @@ for finp in finp_list_proc:
         cscale = pa.cb_scale,         # colorbar scale
         dpi = pa.dpi,
         wtimelabel = True,
+        figsize=(6,4),
     )
 """
 #--- w hdf5 input

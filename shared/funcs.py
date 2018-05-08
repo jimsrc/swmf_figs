@@ -22,6 +22,7 @@ import mpl_toolkits.axisartist.angle_helper as angle_helper
 from matplotlib.projections import PolarAxes
 from mpl_toolkits.axisartist.grid_finder import (FixedLocator, MaxNLocator,
                                                  DictFormatter)
+import Tkinter
 
 
 #++++++ constants
@@ -716,9 +717,26 @@ def make_3dplot(fname_inp, fname_fig, clim=[None,None], vnames=[], data_processo
     print ' [+] global extremes:', np.nanmin(Bmod), np.nanmax(Bmod)
 
     cbmin, cbmax = clim if clim is not [None,None] else (np.nanmin(Bmod),np.nanmax(Bmod))
+
+    figsize = kws.get('figsize', None) # [inches] 2-tuple
+    if figsize is None: 
+        # Deduce the 'figsize' as a function of:
+        # * the dpi of the monitor
+        # * the desired size in pixels of the figure
+        # Grab the dpi value of this monitor. Source:
+        # * https://stackoverflow.com/questions/13714454/specifying-and-saving-a-figure-with-exact-size-in-pixels#13714720
+        # * https://stackoverflow.com/questions/3129322/how-do-i-get-monitor-resolution-in-python/45467999#45467999
+        tk = Tkinter.Tk()
+        dpi_w = tk.winfo_screenwidth()/(tk.winfo_screenmmwidth()/25.4)
+        dpi_h = tk.winfo_screenheight()/(tk.winfo_screenmmheight()/25.4)
+        # size in pixels
+        pixels = kws.get('pixels', [128.,100.])
+        figsize = (pixels[0]/dpi_w, pixels[1]/dpi_h) # [inches]
+
+
     #--- figure
     fig_stuff   = {
-    'fig'   : figure(1,),
+    'fig'   : figure(1, figsize=figsize),
     }
     fig_stuff.update({
     'ax'    : fig_stuff['fig'].add_subplot(111, projection='3d'),
@@ -783,7 +801,7 @@ def make_3dplot(fname_inp, fname_fig, clim=[None,None], vnames=[], data_processo
 
     # save figure
     #show()
-    fig.savefig(fname_fig, dpi=kws.get('dpi',135), bbox_inches='tight')
+    fig.savefig(fname_fig, dpi=100, bbox_inches='tight')
     close(fig)
     del fig
     return None
