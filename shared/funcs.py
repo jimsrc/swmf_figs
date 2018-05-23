@@ -156,7 +156,13 @@ def read_data(fnm, vnames):
 
         # get output variables from simulation
         #fkeys_low = [ _k.lower() for _k in fpb.keys() ]
-        assert all([_vnm in fpb.keys() for _vnm in vnames])
+        assert all([_vnm in fpb.keys() for _vnm in vnames]), \
+            """
+            one of these variables:
+            %r
+            is/are not included in those of the input file:
+            %r
+            """ % (vnames, fpb.keys())
         for nm in vnames:
             vdict[nm] = fpb[nm][...]
         print ' [*] read ok.\n'
@@ -251,7 +257,7 @@ def get_array_vars(fname_inp=None, data=None, checks=False, complete_domain_walk
     ndata            = r.size
 
     # obtain Bmod from vdict
-    logger.info(' [+] processing ASCII data to obtain observable...')
+    logger.info(' [+] processing input data to obtain observable...')
     assert data_processor is not None, ' [-] We need a processor function!\n'
     
     if fformat in ('ascii', 'binary'): # we need some treatment
@@ -384,6 +390,7 @@ def get_index_r(r, ro):
     assert r[0]==r.min() and r[-1]==r.max(), \
         ' [-] ERROR: this variable should be monotically ascending!\n'
 
+    # choose the closest in the grid
     ro_behind, ro_ahead = r[r<=ro][-1], r[r>=ro][0]
     be_gt_ah    = (ro-ro_behind) >= (ro_ahead-ro)
     if be_gt_ah:
@@ -801,15 +808,150 @@ def make_3dplot(fname_inp, fname_fig, clim=[None,None], vnames=[], data_processo
 
     # save figure
     #show()
-    fig.savefig(fname_fig, dpi=100, bbox_inches='tight')
+    fig.savefig(fname_fig, dpi=kws.get('dpi',100), bbox_inches='tight')
     close(fig)
     del fig
     return None
 
+def r_cut(fname_inp, fname_fig, ro, dph=[None,None], dth=[None,None], figsize=(6,4), clim=[None,None], verbose='debug', vnames=[], data_processor=None, cscale='linear', interactive=False):
+    """
+    make 2D plot with a radial cut
+    """
+    logger.setLevel(getattr(logging, verbose.upper()))
+    r2d         = 180./np.pi
+    assert len(vnames)>0, ' [-] We need names in vnames!\n'
+    # we'll obtain:
+    # - same data but in structured way; friendly for plot_surface().
+    # - fill 'vdict'' with original ASCII data
+    d = get_array_vars(fname_inp, checks=False, complete_domain_walk=True, 
+        vnames=vnames, data_processor=data_processor)
+    assert d is not None
+    # NOTE: d['data'] is processed sutff built from the original (from
+    # the ASCII file) simulation data. Such processing was made
+    # by 'data_processor()'.
+    # NOTE: a this point, 'vdict' has the original data from the ASCII file.
+    r, ph, th   = d['coords']   # shape (:,:,:)
+    Bmod        = d['data']; 
+    print ' [+] global extremes:', np.nanmin(Bmod), np.nanmax(Bmod)
+
+    # check defaults values
+    dth[0] = dth[0] if dth[0] is not None else th[0]*r2d 
+    dth[1] = dth[1] if dth[1] is not None else th[-1]*r2d
+    dph[0] = dph[0] if dph[0] is not None else ph[0]*r2d 
+    dph[1] = dph[1] if dph[1] is not None else ph[-1]*r2d 
+
+    # make selection in a given width in longitude (centered in
+    # the `lon` value)
+    cc_ph = (ph*r2d>=dph[0]) & (ph*r2d<=dph[1])
+    cc_th = (th*r2d>=dth[0])  & (th*r2d<=dth[1])
+    if (cc_ph.nonzero()[0].size > 0) and (cc_th.nonzero()[0].size > 0):
+        print(' [+] phi plot limits: (%g, %g)' % (ph[cc_ph][0]*r2d,ph[cc_ph][-1]*r2d))
+    else:
+        raise SystemExit(
+        '\n [-] the selection in longitude and theta is NULL!\n' +\
+        ' cc_ph.size: %d\n cc_th.size: %d\n' % (cc_ph.nonzero()[0].size, cc_th.nonzero()[0].size)
+        )
+
+    #--- slice an specific r
+    # set the plot range in 'r'
+    i_r = get_index_r(r, ro)
+    i_th_ini = get_index_r(th*r2d, dth[0])
+    i_th_end = get_index_r(th*r2d, dth[1])
+    
+    logger.debug(' [+] averaging lices in phi and r ...')
+    #var_bare = np.nanmean(Bmod.transpose((1,0,2))[cc_ph,i_r,:], axis=0)
+    var_bare = Bmod.transpose((1,0,2))[cc_ph,i_r,i_th_ini:i_th_end+1]
+
+    # same w/o NaNs columns/rows
+    var, ph_clean, th_clean = clean_sparse_array(var_bare, ph[cc_ph], th[cc_th])
+    #fig = figure(1,); ax=fig.add_subplot(111)
+    #ax.pcolor(var); show()
+    #import pdb; pdb.set_trace()
+    var_m = np.ma.masked_where(np.isnan(var), var)
+
+    print '[+] plot extremes: ', np.nanmin(var), np.nanmax(var)
+    # NOTE: 'plot_surface' can only plot variables with shape (n,m), so 
+    # no 3D variables.
+    cbmin, cbmax = [np.nanmin(var), np.nanmax(var)] \
+        if clim==[None,None] else clim
+    print " >> mean/median: ", np.nanmean(var), np.nanmedian(var)
+
+    # mesh versions of the coords
+    PH, TH   = np.meshgrid(ph_clean*r2d, th_clean*r2d)
+
+    #--- figure
+    fig     = figure(1, figsize=figsize)
+    ax      = fig.add_subplot(111, )
+
+    #--- other options
+    # color scale
+    if cscale=='linear':
+        norm = Normalize(cbmin, cbmax)
+    elif cscale=='log':
+        norm = LogNorm(cbmin, cbmax)
+    else:
+        raise SystemExit(' [-] invalid color scale: '+cscale+'\n')
+    opt = {
+    #'rstride'       : 1,
+    #'cstride'       : 1,
+    'linewidth'     : 0,
+    #'antialiased'   : False,
+    #'shade'         : False,
+    #'shading'       : 'flat',
+    #'alpha'         : 1., #kargs.get('alpha',0.9),
+    'cmap'          : cm.hot,                # gray-scale
+    'norm'          : norm,
+    'vmin'          : cbmin, #kargs.get('cbmin',1),
+    'vmax'          : cbmax, #kargs.get('cbmax',1000),
+    #'facecolors'    : cm.jet(norm(var_m)),
+    #'interpolation' : 'none',
+    'edgecolors'    : 'None',
+    #'corner_mask'   : True,
+    }
+    # Note the cm.jet(..) --> cm.jet(norm(..)); see:
+    # https://stackoverflow.com/questions/25023075/normalizing-colormap-used-by-facecolors-in-matplotlib
+    print '\n [*] Generating 3D plot...\n'
+    #surf = ax.contourf(RHO[:,:], Z[:,:], var_m[:,:].T, **opt)
+    surf = ax.pcolormesh(PH[:,:], TH[:,:], var_m[:,:].T, **opt)
+    #surf = ax.scatter(th_clean, r_clean, c=var[:,:], **opt)
+    _iph, _ith = np.argwhere(~np.isnan(var[:,:])).T
+    _ph, _th  = ph_clean[_iph], th_clean[_ith]
+    #surf = ax.scatter(_ph, _th, c=var[_iph,_ith], **opt)
+
+
+    # perspective azimuth
+    sm = cm.ScalarMappable(cmap=surf.cmap, norm=surf.norm)
+    sm.set_array(var_m); #surf.set_array(var)
+
+    ax.set_xlabel('$\phi$ [deg]')
+    ax.set_ylabel('$\\theta$ [deg]')
+    #TITLE = ' global $\phi$ limits: (%g, %g) \n' % (ph[0]*r2d, ph[-1]*r2d) +\
+    #'$\phi$ interval for plot: (%.2g, %.2g) [deg]\n' % (ph[cc_ph][0]*r2d, ph[cc_ph][-1]*r2d) +\
+    #'$r$ interval: (%.2g, %.2g) [Ro]' % (r[i_r_min], r[i_r_max])
+    #ax.set_title(TITLE)
+
+    #--- colorbar
+    cb_label = '|B| [G]'
+    cb_fontsize = 13
+    axcb = fig.colorbar(sm, ax=ax)
+    axcb.set_label(cb_label, fontsize=cb_fontsize)
+    sm.set_clim(vmin=cbmin, vmax=cbmax)
+
+    # save figure
+    if interactive:
+        show()
+    else:
+        fig.savefig(fname_fig, dpi=135, bbox_inches='tight')
+    close(fig)
+
+    return d
+
+
+
 
 def lon_cut(fname_inp, fname_fig, lon=0.0, dlon=0.0, r_range=[1.,24.], clim=[None,None], verbose='debug', vnames=[], data_processor=None, cscale='linear', interactive=False):
     """
-    make 2D plot with a longitudinal cuts
+    make 2D plot with a radial cut
     """
     logger.setLevel(getattr(logging, verbose.upper()))
     r2d         = 180./np.pi
