@@ -92,8 +92,7 @@ assert pa.vname in var_names,\
 if not pa.verbose in ('debug', 'info'):
     raise SystemExit(' [-] Invalid argument: %s\n'%pa.verbose)
 
-fnm = '/media/scratch1/swmf/IO2__FDIPS_CR2106_iv/IO2/3d__var_1_n00010500.h5'
-o = sf.r_cut(fnm, pa.fname_fig, ro=pa.ro, 
+o = sf.r_cut(pa.fname_inp, pa.fname_fig, ro=pa.ro, 
     dph=pa.dlon,
     dth=pa.dth,
     figsize=pa.figsize,
