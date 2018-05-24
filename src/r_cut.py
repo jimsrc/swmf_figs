@@ -50,6 +50,18 @@ default=5.0,
 help='radius for the spherical shell to be plotted.',
 )
 parser.add_argument(
+'-cs', '--cb_scale',
+type=str,
+default='log', # 'log'
+help='colorbar scale ("linear" or "log")',
+)
+parser.add_argument(
+'-cl', '--cb_label',
+type=str,
+default='|B| [G]', # 'log'
+help='colorbar label (e.g. variable name and units)',
+)
+parser.add_argument(
 '-i', '--interactive',
 action='store_true',
 default=False,
@@ -99,7 +111,9 @@ o = sf.r_cut(pa.fname_inp, pa.fname_fig, ro=pa.ro,
     verbose=pa.verbose, 
     vnames=custom_data.vnames, 
     data_processor=getattr(custom_data, 'process_'+pa.vname),
-    cscale='log',                   # color scale
+    cscale=pa.cb_scale,                   # color scale
+    mapcolor='gray',
+    cb_label=pa.cb_label,
     interactive=pa.interactive,
     )
 

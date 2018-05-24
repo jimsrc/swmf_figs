@@ -305,9 +305,10 @@ def get_array_vars(fname_inp=None, data=None, checks=False, complete_domain_walk
   
         fill_perc = 100.*(data.size - np.isnan(data).nonzero()[0].size)/data.size
         logger.info(' [+] the data array was filled at %g %% \n' % fill_perc)
+
     elif fformat=='hdf5':
         _r, _ph, _th = r, ph, th
-        data         = data_processor(_vdict)
+        data         = data_processor(_vdict, **{'r':r,'ph':ph,'th':th})
         # NOTE: in case vetorial==True, we need a transpose
         if vectorial:
             data = data.transpose((1,2,3,0))
@@ -813,7 +814,7 @@ def make_3dplot(fname_inp, fname_fig, clim=[None,None], vnames=[], data_processo
     del fig
     return None
 
-def r_cut(fname_inp, fname_fig, ro, dph=[None,None], dth=[None,None], figsize=(6,4), clim=[None,None], verbose='debug', vnames=[], data_processor=None, cscale='linear', interactive=False):
+def r_cut(fname_inp, fname_fig, ro, dph=[None,None], dth=[None,None], figsize=(6,4), clim=[None,None], mapcolor='hot', cb_label='|B| [G]', verbose='debug', vnames=[], data_processor=None, cscale='linear', interactive=False):
     """
     make 2D plot with a radial cut
     """
@@ -899,7 +900,7 @@ def r_cut(fname_inp, fname_fig, ro, dph=[None,None], dth=[None,None], figsize=(6
     #'shade'         : False,
     #'shading'       : 'flat',
     #'alpha'         : 1., #kargs.get('alpha',0.9),
-    'cmap'          : cm.hot,                # gray-scale
+    'cmap'          : getattr(cm,mapcolor), #cm.hot,       # gray-scale
     'norm'          : norm,
     'vmin'          : cbmin, #kargs.get('cbmin',1),
     'vmax'          : cbmax, #kargs.get('cbmax',1000),
@@ -918,20 +919,19 @@ def r_cut(fname_inp, fname_fig, ro, dph=[None,None], dth=[None,None], figsize=(6
     _ph, _th  = ph_clean[_iph], th_clean[_ith]
     #surf = ax.scatter(_ph, _th, c=var[_iph,_ith], **opt)
 
-
     # perspective azimuth
     sm = cm.ScalarMappable(cmap=surf.cmap, norm=surf.norm)
     sm.set_array(var_m); #surf.set_array(var)
 
     ax.set_xlabel('$\phi$ [deg]')
     ax.set_ylabel('$\\theta$ [deg]')
-    #TITLE = ' global $\phi$ limits: (%g, %g) \n' % (ph[0]*r2d, ph[-1]*r2d) +\
-    #'$\phi$ interval for plot: (%.2g, %.2g) [deg]\n' % (ph[cc_ph][0]*r2d, ph[cc_ph][-1]*r2d) +\
-    #'$r$ interval: (%.2g, %.2g) [Ro]' % (r[i_r_min], r[i_r_max])
-    #ax.set_title(TITLE)
+    TITLE = '$r_o = %.2g$ $R_O$\n' % r[i_r] +\
+    '$\phi$ limits: $(%.1f, %.1f)^o$\n'%(ph[cc_ph][0]*r2d, ph[cc_ph][-1]*r2d) +\
+    '$\\theta$ limits: $(%.1f, %.1f)^o$'%(th[i_th_ini]*r2d,th[i_th_end]*r2d)
+    ax.set_title(TITLE)
 
     #--- colorbar
-    cb_label = '|B| [G]'
+    #cb_label = '|B| [G]'
     cb_fontsize = 13
     axcb = fig.colorbar(sm, ax=ax)
     axcb.set_label(cb_label, fontsize=cb_fontsize)
