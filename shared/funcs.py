@@ -814,6 +814,7 @@ def make_3dplot(fname_inp, fname_fig, clim=[None,None], vnames=[], data_processo
     del fig
     return None
 
+
 def r_cut(fname_inp, fname_fig, ro, dph=[None,None], dth=[None,None], figsize=(6,4), clim=[None,None], mapcolor='hot', cb_label='|B| [G]', verbose='debug', vnames=[], data_processor=None, cscale='linear', interactive=False):
     """
     make 2D plot with a radial cut
@@ -925,7 +926,7 @@ def r_cut(fname_inp, fname_fig, ro, dph=[None,None], dth=[None,None], figsize=(6
 
     ax.set_xlabel('$\phi$ [deg]')
     ax.set_ylabel('$\\theta$ [deg]')
-    TITLE = '$r_o = %.2g$ $R_O$\n' % r[i_r] +\
+    TITLE = '$r_o = %.2f$ $R_O$\n' % r[i_r] +\
     '$\phi$ limits: $(%.1f, %.1f)^o$\n'%(ph[cc_ph][0]*r2d, ph[cc_ph][-1]*r2d) +\
     '$\\theta$ limits: $(%.1f, %.1f)^o$'%(th[i_th_ini]*r2d,th[i_th_end]*r2d)
     ax.set_title(TITLE)
@@ -945,8 +946,6 @@ def r_cut(fname_inp, fname_fig, ro, dph=[None,None], dth=[None,None], figsize=(6
     close(fig)
 
     return d
-
-
 
 
 def lon_cut(fname_inp, fname_fig, lon=0.0, dlon=0.0, r_range=[1.,24.], clim=[None,None], verbose='debug', vnames=[], data_processor=None, cscale='linear', interactive=False):
@@ -1104,7 +1103,6 @@ def clean_sparse_array(m, x, y):
     # clean version of 'm'
     return m2, x_clean, y_clean
             
-
 
 def get_domains(coords, eps=0.005, checks=True, complete=False, nc=[6,4,4], nRoot=[8,8,4], nLevel=1):
     """

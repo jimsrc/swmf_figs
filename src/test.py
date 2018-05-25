@@ -1,107 +1,76 @@
 #!/usr/bin/env ipython
 # -*- coding: utf-8 -*-
-import argparse, os, glob
+import argparse, os, glob, sys
 import numpy as np
 import shared.funcs as sf
 from mpi4py import MPI
+import fparsers as fp
 
-#--- retrieve args
+#--- parse args
 parser = argparse.ArgumentParser(
-formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    description="""
+    This generates rates averaged over an interval of energy 
+    channels (defined in 'ch_Eds').
+    """,
 )
-parser.add_argument(
-'-clim', '--clim',
-type=float,
-nargs=2,
-default=[None, None],
-help='colorbar limits',
-)
-parser.add_argument(
-'-cs', '--cb_scale',
-type=str,
-default='log', # 'log'
-help='colorbar scale ("linear" or "log")',
-)
-parser.add_argument(
-'-fi', '--fname_inp',
-type=str,
-default=None,
-help='input ASCII file. If this option is used, don\'t use --dir_src.',
-)
-parser.add_argument(
-'-ff', '--fname_fig',
-type=str,
-default=None,
-help='output PNG file. If --dir_dst is specified, this option must not be used.',
-)
-parser.add_argument(
-'-ds', '--dir_src',
-type=str,
-default=None,
-help='input directory. If this option is used, don\'t use --fname_inp.',
-)
-parser.add_argument(
-'-dd', '--dir_dst',
-type=str,
-default=None,
-help='input directory',
-)
-parser.add_argument(
-'-ro', '--ro',
-type=float,
-default=5.0,
-help='radius for the spherical shell to be plotted.',
-)
-parser.add_argument(
-'-pho', '--pho',
-type=float,
-default=0.0,
-help='longitude value for the cut',
-)
-parser.add_argument(
-'-dlon', '--dlon',
-type=float,
-default=0.0,
-help='interval width for the cut in longitude',
-)
-parser.add_argument(
-'-rr', '--r_range',
-type=float,
-nargs=2,
-default=[2., 5.],
-help='radius for the spherical shell to be plotted.',
-)
-parser.add_argument(
-'-v', '--verbose',
-type=str,
-default='debug',
-help='verbosity level (debug=minimal, info=extended)',
-)
-parser.add_argument(
-'-pazim', '--pazim', #action='store',
-type=float,
-default=-60.,
-help='perspective azimuth',
-)
-parser.add_argument(
-'-dpi', '--dpi', #action='store',
-type=int,
-default=135,
-help='dots per inch for savefig()',
-)
-# import custom methods for specific dataset
-# NOTE: the names of the variables/observables depend on this 
-# specific dataset && on the 'custom_data.py' script.
-from shared import custom_data
-data_methods = [nm for nm in dir(custom_data) if nm.startswith('process_')]
-nmethods     = len(data_methods)
-var_names    = [ dm.split('process_')[1] for dm in data_methods]
-parser.add_argument(
-'-vname', '--vname',
-type=str,
-help='scalar variable to plot. Available options: ' + ', '.join(var_names),
-default=var_names[0],
-)
+# subparsers
+subparsers = parser.add_subparsers(description=
+    """
+    Use one of the submodules below.
+    """,
+    )
+
+# config the subparsers
+for mod_name in ['3d_cut', 'r_cut']:
+    # grab the class
+    mod = getattr(fp, 'cutter__'+mod_name)()
+    # grab the parser of class 'mod'
+    #--- all subparsers will have this options in common:
+    subparser_ = subparsers.add_parser(
+    mod_name, 
+    help = mod.help,
+    parents = [mod.parser], 
+    formatter_class = argparse.ArgumentDefaultsHelpFormatter
+    )
+    subparser_.add_argument(
+    '-fi', '--fname_inp',
+    type=str,
+    default=None,
+    help='input ASCII file. If this option is used, don\'t use --dir_src.',
+    )
+    subparser_.add_argument(
+    '-fig', '--fname_fig',
+    type=str,
+    default=None,
+    help='output PNG file. If --dir_dst is specified, this option must not be used.',
+    )
+    subparser_.add_argument(
+    '-ds', '--dir_src',
+    type=str,
+    default=None,
+    help='input directory. If this option is used, don\'t use --fname_inp.',
+    )
+    subparser_.add_argument(
+    '-dd', '--dir_dst',
+    type=str,
+    default=None,
+    help='input directory',
+    )
+    # import custom methods for specific dataset
+    # NOTE: the names of the variables/observables depend on this 
+    # specific dataset && on the 'custom_data.py' script.
+    from shared import custom_data
+    data_methods = [nm for nm in dir(custom_data) if nm.startswith('process_')]
+    nmethods     = len(data_methods)
+    var_names    = [ dm.split('process_')[1] for dm in data_methods]
+    subparser_.add_argument(
+    '-vname', '--vname',
+    type=str,
+    help='scalar variable to plot. Available options: ' + ', '.join(var_names),
+    default=var_names[0],
+    )
+
 pa = parser.parse_args()
 
 
@@ -144,41 +113,16 @@ nf_prev       = nf_proc[:rank].sum()
 finp_list_proc = finp_list[nf_prev:nf_prev+nf_proc[rank]]
 
 
-#--- build figs
-for finp in finp_list_proc:
-    if not pa.fname_inp:    # massive mode
-        fname_fig = finp.replace('.h5','__'+pa.vname+'.png')
-        if pa.dir_dst:
-            # change the dir path
-            fname_fig = pa.dir_dst + '/' + fname_fig.split('/')[-1]
-    else:                   # individual mode
-        fname_fig = pa.fname_fig
+# grab the name of the module selected in the CLI
+mod_selected = sys.argv[1]
+print "\n ---> Using %s\n"%mod_selected 
+mod = getattr(fp,'cutter__'+mod_selected)()
 
-    sf.make_3dplot(
-        finp, 
-        fname_fig, 
-        pa.clim,
-        vnames = custom_data.vnames, 
-        data_processor = getattr(custom_data, 'process_'+pa.vname),
-        verbose = pa.verbose, 
-        ro = pa.ro,
-        pho = pa.pho,
-        r_range = pa.r_range,
-        pazim = pa.pazim,
-        cscale = pa.cb_scale,         # colorbar scale
-        dpi = pa.dpi,
-        wtimelabel = True,
-        figsize=(6,4),
+# build the times series
+getattr(mod, 'run')(
+    pa, 
+    custom_data = custom_data, 
+    finp_list_proc = finp_list_proc,
     )
-"""
-#--- w hdf5 input
-sf.make_3dplot_hdf5(pa.fname_inp, pa.fname_fig, pa.clim,
-    vname = pa.vname,
-    verbose=pa.verbose, 
-    ro=pa.ro,
-    pazim = pa.pazim,
-    cscale=pa.cb_scale,         # colorbar scale
-)
-"""
 
 #EOF
