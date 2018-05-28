@@ -154,13 +154,13 @@ class cutter__r_cut(object):
         parser.add_argument(
         '-cs', '--cb_scale',
         type=str,
-        default='log', # 'log'
+        default='log',
         help='colorbar scale ("linear" or "log")',
         )
         parser.add_argument(
         '-cl', '--cb_label',
         type=str,
-        default='|B| [G]', # 'log'
+        default='|B| [G]',
         help='colorbar label (e.g. variable name and units)',
         )
         parser.add_argument(
@@ -179,7 +179,7 @@ class cutter__r_cut(object):
         parser.add_argument(
         '-figsize', '--figsize',
         type=float,
-        default=[6,4], #[-90., 90.],
+        default=[6,4],
         nargs=2,
         metavar=('WIDTH','HEIGTH'),
         help='figure size',
@@ -204,13 +204,14 @@ class cutter__r_cut(object):
                 ro=pa.ro, 
                 dph=pa.dlon,
                 dth=pa.dth,
-                figsize=pa.figsize,
+                figsize=kws.get('figsize', getattr(pa, 'figsize', (6,4))),
                 verbose=pa.verbose, 
                 vnames=custom_data.vnames, 
                 data_processor=getattr(custom_data, 'process_'+pa.vname),
                 cscale=pa.cb_scale,                   # color scale
-                mapcolor=kws.get('mapcolor', getattr(pa, 'mapcolor', 'gray')),
+                colormap=kws.get('colormap', getattr(pa, 'colormap', 'gray')),
                 cb_label=pa.cb_label,
                 interactive=pa.interactive,
+                wtimelabel = True,
             )
 #EOF

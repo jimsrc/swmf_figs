@@ -70,6 +70,16 @@ for mod_name in ['3d_cut', 'r_cut']:
     help='scalar variable to plot. Available options: ' + ', '.join(var_names),
     default=var_names[0],
     )
+    # colormap
+    subparser_.add_argument(
+    '-cm', '--colormap',
+    type=str,
+    default=None,
+    help="""colormap for matplotlib. Examples: hot/hot_r, gray/gray_r, 
+    jet, viridis, etc (see more in 
+    https://matplotlib.org/examples/color/colormaps_reference.html)
+    """,
+    )
 
 pa = parser.parse_args()
 
