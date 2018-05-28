@@ -268,7 +268,7 @@ def get_array_vars(fname_inp=None, data=None, checks=False, complete_domain_walk
             raise SystemExit(' [-] parser conflict: observables is either scalar or vectorial.\n')
         # make a full-domain discovery by walking all the
         # entries (one by one) in the ASCII file.
-        eps = 0.005 # tolerance for degeneration detection
+        eps = 0.005*0.05 #0.005 # tolerance for degeneration detection
         logger.info(' [+] making domain discovery...')
         _r, _ph, _th = get_domains([r,ph,th],
             eps=eps,  # precision for domain discovery
@@ -299,10 +299,14 @@ def get_array_vars(fname_inp=None, data=None, checks=False, complete_domain_walk
             # make sure we are assignating values to this array element
             # for the 1st time!
             assert np.all(np.isnan(data[i_r,i_ph,i_th])), \
-                '\n [-] this array element already has a value!!\n'
+            '\n [-] this array element already has a value!!\n'+\
+            ' * (i_r,i_ph,i_th): %d, %d, %d\n'%(i_r, i_ph, i_th)+\
+            ' * file: %s\n'%(fname_inp if fname_inp is not None else '<data>')
             # assignate value to this array-element
             data[i_r,i_ph,i_th] = pdata[ind]
-  
+ 
+        # percentage of the array that is storing the data that we
+        # actually read from 'fname_inp'.
         fill_perc = 100.*(data.size - np.isnan(data).nonzero()[0].size)/data.size
         logger.info(' [+] the data array was filled at %g %% \n' % fill_perc)
 
@@ -795,6 +799,7 @@ def make_3dplot(fname_inp, fname_fig, clim=[None,None], vnames=[], data_processo
     ax.set_zlabel('Z [Ro]')
     TITLE = '$r_o$ = %.2g $R_o$' % r_plot +\
     '\n($\phi_o$,r1,r2) : ($%g^o,%g\,Ro,%g\,Ro$)' % (pho,r_range[0],r_range[1])
+    # extract the step number from the input filename
     if kws.get('wtimelabel',False):
         tlabel = fname_inp.split('/')[-1].split('.h5')[0].split('_')[-1].replace('n','')
         TITLE += '\n step: '+tlabel
@@ -815,7 +820,7 @@ def make_3dplot(fname_inp, fname_fig, clim=[None,None], vnames=[], data_processo
     return None
 
 
-def r_cut(fname_inp, fname_fig, ro, dph=[None,None], dth=[None,None], figsize=(6,4), clim=[None,None], mapcolor='hot', cb_label='|B| [G]', verbose='debug', vnames=[], data_processor=None, cscale='linear', interactive=False):
+def r_cut(fname_inp, fname_fig, ro, dph=[None,None], dth=[None,None], figsize=(6,4), clim=[None,None], colormap='hot', cb_label='|B| [G]', verbose='debug', vnames=[], data_processor=None, cscale='linear', interactive=False, **kws):
     """
     make 2D plot with a radial cut
     """
@@ -901,7 +906,7 @@ def r_cut(fname_inp, fname_fig, ro, dph=[None,None], dth=[None,None], figsize=(6
     #'shade'         : False,
     #'shading'       : 'flat',
     #'alpha'         : 1., #kargs.get('alpha',0.9),
-    'cmap'          : getattr(cm,mapcolor), #cm.hot,       # gray-scale
+    'cmap'          : getattr(cm,colormap), #cm.hot,       # gray-scale
     'norm'          : norm,
     'vmin'          : cbmin, #kargs.get('cbmin',1),
     'vmax'          : cbmax, #kargs.get('cbmax',1000),
@@ -929,6 +934,10 @@ def r_cut(fname_inp, fname_fig, ro, dph=[None,None], dth=[None,None], figsize=(6
     TITLE = '$r_o = %.2f$ $R_O$\n' % r[i_r] +\
     '$\phi$ limits: $(%.1f, %.1f)^o$\n'%(ph[cc_ph][0]*r2d, ph[cc_ph][-1]*r2d) +\
     '$\\theta$ limits: $(%.1f, %.1f)^o$'%(th[i_th_ini]*r2d,th[i_th_end]*r2d)
+    # extract the step number from the input filename
+    if kws.get('wtimelabel',False):
+        tlabel = fname_inp.split('/')[-1].split('.h5')[0].split('_')[-1].replace('n','')
+        TITLE += '\n step: '+tlabel
     ax.set_title(TITLE)
 
     #--- colorbar
