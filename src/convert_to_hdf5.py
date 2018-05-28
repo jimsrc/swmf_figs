@@ -1,11 +1,13 @@
 #!/usr/bin/env ipython
 # -*- coding: utf-8 -*-
-import os, argparse
+import os, sys, argparse, gc
 import h5py
-import shared.funcs as sf
 import numpy as np
 from mpi4py import MPI
 from glob import glob
+# shared libs
+sys.path.insert(0, os.environ['HOME']+'/my_projects/swmf_figs/src')
+import shared.funcs as sf
 
 #--- retrieve args
 parser = argparse.ArgumentParser(
@@ -20,7 +22,7 @@ help='input ASCII file',
 parser.add_argument(
 '-dd', '--dir_dst',
 type=str,
-default=None,
+default='<same-as-DIR_SRC>',
 help='output hdf5 file'
 )
 parser.add_argument(
@@ -28,6 +30,15 @@ parser.add_argument(
 action='store_true',
 default=False,
 help='Use it if you don\'t want to override the .h5 files in destination dir.',
+)
+parser.add_argument(
+'-ndo', '--ndo',
+type=int,
+default=0,
+help="""
+Max number of files to process **per processor**.
+If 0, it process all the input files it finds in DIR_SRC directory.
+"""
 )
 # import custom methods for specific dataset
 # NOTE: the names of the variables/observables depend on this 
@@ -43,7 +54,11 @@ var_names    = [ dm.split('process_')[1] for dm in data_methods]
 #default=var_names[0],
 #)
 pa = parser.parse_args()
-
+#--- defaults
+if pa.dir_dst=='<same-as-DIR_SRC>': 
+    pa.dir_dst=pa.dir_src
+else:
+    os.system('mkdir -p '+pa.dir_dst)
 
 
 # _data is of shape (4,:) where ':' is the size of rows in the ASCII file
@@ -65,14 +80,19 @@ nf_prev       = nf_proc[:rank].sum()
 # list of files assigned to this proc
 fnm_list_proc = fnm_list[nf_prev:nf_prev+nf_proc[rank]]
 
-print "**************** STARTTTT *************"
+ndone = 0 # number of processed files per processor.
 for fname_inp in fnm_list_proc:
+    print " [rank:%d] processing: %s" % (rank, fname_inp.split('/')[-1])
     # check is output already exists
     fname_out = pa.dir_dst +'/'+ fname_inp.split('/')[-1].replace('.out','.h5')
     if pa.resume and os.path.isfile(fname_out):
         continue # dont't override .h5 file
 
     _data  = sf.read_data(fname_inp, vnames)
+
+    # we have to manually garbage-collect this. See:
+    # https://sourceforge.net/p/spacepy/bugs/99/
+    gc.collect()
 
     vdict = {}
 
@@ -88,17 +108,15 @@ for fname_inp in fnm_list_proc:
             complete_domain_walk=True, 
             vnames=custom_data.vnames, 
             data_processor=getattr(custom_data, 'process_'+rvname),
-            vectorial=False if rvname not in ('B',) else True,
+            vectorial=False if rvname not in custom_data.ovectors else True,
             )
-    #import pdb; pdb.set_trace()
-    print "**************** LINEHERE *************"
+    print "[*] multi-dimensional data built ok."
 
     # NOTE: d['data'] is processed sutff built from the original (from
     # the ASCII file) simulation data. Such processing was made
     # by 'data_processor()'.
     # NOTE: a this point, 'vdict' has the original data from the ASCII file.
     r, ph, th   = vdict[rvname]['coords']
-    #data        = d['data']; 
 
     fo = h5py.File(fname_out, 'w')
     for rvname in retrieve_vnames:
@@ -118,5 +136,11 @@ for fname_inp in fnm_list_proc:
     fo['coords/th'] = th
     print " [*] saving: " + fo.filename
     fo.close()
+    del fo, vdict, _data
+    ndone += 1
+    if (pa.ndo > 0) and (ndone > pa.ndo): break
+
+
+print "\n[r:%d] Finished!" % (rank)
 
 #EOF
