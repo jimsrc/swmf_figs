@@ -53,11 +53,12 @@ VNAMEs=(rho p te ti Bmod Umod Bvert)
 # the output, is in p.69 of the SWMF.pdf manual.
 CLABELs=('$\rho$ [amu/cc]' 'p [nPa]' 'pe [K]' 'ti [K]' 'Bmod [G]' 'Umod [km/s]' '$B_r$ [G]')
 
+RepoDir=$HOME/my_projects/swmf_figs
 [[ $JustMovie -eq 0 ]] && for i in $(seq 0 $((${#VNAMEs[@]}-1))); do
     vname=${VNAMEs[$i]}
     clabel=${CLABELs[$i]}
     echo -e "\n [*] processing vname: $vname\n"
-    mpirun -np $NPROC ./test.py -- r_cut \
+    mpirun -np $NPROC $RepoDir/src/swmf_plot.py -- r_cut \
         -ds ${DirSrc} \
         -dd ${DirDst} \
         -ro $ro \

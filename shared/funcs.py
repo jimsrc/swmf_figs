@@ -7,7 +7,7 @@ from:
 import numpy as np
 #from numpy import sin, cos, array, sqrt
 import logging, argparse, glob
-import h5py
+import h5py, copy
 #---- system
 from subprocess import Popen, PIPE, STDOUT
 import re
@@ -382,28 +382,28 @@ def get_array_Bmod(fname_inp, nc=[6,4,4], nRoot=[8,8,4], nLevel=1):
     }
 
 #@profile
-def get_index_r(r, ro):
+def get_index_r(c, co):
     """
-    NOTE: we assume 'r' is a monotonically ascending variable.
+    NOTE: we assume the coordinate 'c' is a monotonically ascending variable.
     """
-    dr_max  = (r[1:] - r[:-1]).max() # coarser resolution in r
+    dc_max  = (c[1:] - c[:-1]).max() # coarser resolution in c
 
     # what follows is valid if we fulfill this:
-    rmin, rmax = r[0], r[-1]
-    assert (ro<=rmax) and (ro>=rmin),\
-        '\n [-] ERROR: \'ro\' must be inside the interval (%g, %g)\n'%(rmin,rmax)
-    assert r[0]==r.min() and r[-1]==r.max(), \
-        ' [-] ERROR: this variable should be monotically ascending!\n'
+    cmin, cmax = c[0], c[-1]
+    assert (co<=cmax) and (co>=cmin),\
+    '\n [-] ERROR: \'co\' (=%g) must be inside the interval (%g, %g)\n'%(co,cmin,cmax)
+    assert c[0]==c.min() and c[-1]==c.max(), \
+    ' [-] ERROR: this variable should be monotically ascending!\n'
 
     # choose the closest in the grid
-    ro_behind, ro_ahead = r[r<=ro][-1], r[r>=ro][0]
-    be_gt_ah    = (ro-ro_behind) >= (ro_ahead-ro)
+    co_behind, co_ahead = c[c<=co][-1], c[c>=co][0]
+    be_gt_ah    = (co-co_behind) >= (co_ahead-co)
     if be_gt_ah:
-        i_r = (r>=ro).nonzero()[0][0] ## RIGHT??. Check first!!
+        i_c = (c>=co).nonzero()[0][0] ## RIGHT??. Check first!!
     else:
-        i_r = (r<=ro).nonzero()[0][-1]
+        i_c = (c<=co).nonzero()[0][-1]
 
-    return i_r
+    return i_c
 
 def get_subcoord(isb, iLevel=0):
     """
@@ -820,7 +820,7 @@ def make_3dplot(fname_inp, fname_fig, clim=[None,None], vnames=[], data_processo
     return None
 
 
-def r_cut(fname_inp, fname_fig, ro, dph=[None,None], dth=[None,None], figsize=(6,4), clim=[None,None], colormap='hot', cb_label='|B| [G]', verbose='debug', vnames=[], data_processor=None, cscale='linear', interactive=False, **kws):
+def r_cut(fname_inp, fname_fig, ro, _dph=[None,None], _dth=[None,None], figsize=(6,4), clim=[None,None], colormap='hot', cb_label='|B| [G]', verbose='debug', vnames=[], data_processor=None, cscale='linear', interactive=False, **kws):
     """
     make 2D plot with a radial cut
     """
@@ -842,15 +842,24 @@ def r_cut(fname_inp, fname_fig, ro, dph=[None,None], dth=[None,None], figsize=(6
     print ' [+] global extremes:', np.nanmin(Bmod), np.nanmax(Bmod)
 
     # check defaults values
+    dth    = copy.deepcopy(_dth)        # (*)
     dth[0] = dth[0] if dth[0] is not None else th[0]*r2d 
     dth[1] = dth[1] if dth[1] is not None else th[-1]*r2d
+    dph    = copy.deepcopy(_dph)        # (*)
     dph[0] = dph[0] if dph[0] is not None else ph[0]*r2d 
     dph[1] = dph[1] if dph[1] is not None else ph[-1]*r2d 
+    # (*): we need to make a copy because otherwise it will change the 
+    # value of the pointer that is given in _th (_ph); if this happens,
+    # the values that dth (dph) adopts here will be parsed as argument
+    # in the next call to the present function!
+    # So, in order to keep the original value that is parsed as argument
+    # dth, dph the first time, we should read it in "read-only" mode with
+    # deepcopy().
 
     # make selection in a given width in longitude (centered in
     # the `lon` value)
     cc_ph = (ph*r2d>=dph[0]) & (ph*r2d<=dph[1])
-    cc_th = (th*r2d>=dth[0])  & (th*r2d<=dth[1])
+    cc_th = (th*r2d>=dth[0]) & (th*r2d<=dth[1])
     if (cc_ph.nonzero()[0].size > 0) and (cc_th.nonzero()[0].size > 0):
         print(' [+] phi plot limits: (%g, %g)' % (ph[cc_ph][0]*r2d,ph[cc_ph][-1]*r2d))
     else:
@@ -861,7 +870,7 @@ def r_cut(fname_inp, fname_fig, ro, dph=[None,None], dth=[None,None], figsize=(6
 
     #--- slice an specific r
     # set the plot range in 'r'
-    i_r = get_index_r(r, ro)
+    i_r      = get_index_r(r, ro)
     i_th_ini = get_index_r(th*r2d, dth[0])
     i_th_end = get_index_r(th*r2d, dth[1])
     
